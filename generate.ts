@@ -6,12 +6,16 @@ for (const file of new Bun.Glob("*").scanSync("metadata")) {
   const provider = await import(`./metadata/${file}`);
   const version = [provider.version, provider.suffix].filter(Boolean).join("-");
   const name = `@sst-provider/${provider.name}`;
+  const internalName = `@bitphinix/sst-provider-${provider.name}`;
   const resp = await fetch(`https://registry.npmjs.org/${name}/${version}`);
-  if (resp.status !== 404) {
+  const internalResp = await fetch(
+    `https://registry.npmjs.org/${internalName}/${version}`
+  );
+  if (resp.status !== 404 || internalResp.status !== 404) {
     console.log("skipping", name, "version", version, "already exists");
     continue;
   }
-  console.log("generating", name, "version", version);
+  console.log("generating", internalName, "version", version);
   const result =
     await $`pulumi package add terraform-provider ${provider.terraform} ${provider.version}`;
   const path = result.stdout
@@ -27,7 +31,7 @@ for (const file of new Bun.Glob("*").scanSync("metadata")) {
 
   const pkg = Bun.file("package.json");
   const json = await pkg.json();
-  json.name = name;
+  json.name = internalName;
   json.version = provider.version;
   json.files = ["bin/", "README.md", "LICENSE"];
   if (provider.suffix) json.version += "-" + provider.suffix;
